@@ -25,10 +25,10 @@ func main() {
 		log.Printf("根据ID查找用户失败，%+v", err1)
 	}
 
-	if user == nil {
-		log.Printf("未查找到Id为6的用户")
+	if user.Valid {
+		log.Printf("查找到Id为6的用户: %s", user.User.Name)
 	} else {
-		log.Printf("查找到Id为6的用户: %v", user == nil)
+		log.Printf("未查找到Id为6的用户")
 	}
 
 	users, err2 := service.FindUsersByAge(30)

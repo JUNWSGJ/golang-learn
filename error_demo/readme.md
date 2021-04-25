@@ -26,16 +26,16 @@ func FindUsersByAge(age uint8) (*[]User, error) {
 我觉得可以 用 struct 包装 返回的User，类似sql.NullString
 ```golang
 type NullString struct {
-  String string
-  Valid  bool
+    String string
+    Valid  bool
 }
 ```
 
 ```golang
 
 type NullUser struct {
-	User *User
-	Valid  bool
+    User *User
+    Valid  bool
 }
 
 func FindUserById(id uint) (domain.NullUser, error) {
