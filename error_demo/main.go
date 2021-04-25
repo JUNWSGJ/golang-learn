@@ -24,6 +24,7 @@ func main() {
 	if err1 != nil {
 		log.Printf("根据ID查找用户失败，%+v", err1)
 	}
+
 	if user == nil {
 		log.Printf("未查找到Id为6的用户")
 	} else {
