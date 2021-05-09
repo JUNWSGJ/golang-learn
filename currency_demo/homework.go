@@ -75,6 +75,12 @@ func (s *HttpServer) Stop() error {
 	return s.server.Shutdown(s.ctx)
 }
 
+/**
+ * 程序启动了两个http server， 分别监听8001和8002端口
+ * 接收到linux退出信号 或者 向任意一个server发送指令：
+ * curl http://localhost:8001/shutdown 或 curl http://localhost:8002/shutdown
+ * 都会导致两个 http server 全部注销并退出程序
+ */
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
@@ -97,6 +103,7 @@ func main() {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-exit:
+			log.Printf("收到 linux signal 信号，准备退出")
 			cancel()
 			return nil
 		}
