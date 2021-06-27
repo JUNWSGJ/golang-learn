@@ -15,7 +15,7 @@ var (
 	rdb        *redis.Client
 )
 
-func RandStr(length int) string {
+func createRandStr(length int) string {
 	str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	bytes := []byte(str)
 	result := []byte{}
@@ -26,23 +26,39 @@ func RandStr(length int) string {
 	return string(result)
 }
 
-func main() {
+func init() {
+
+}
+
+func writeData(num int, valueSize int) error {
 
 	rdb = redis.NewClient(&redis.Options{Addr: RedisIp + ":" + RedisPort, Password: ""})
 	_, err := rdb.Ping().Result()
 	if err != nil {
 		log.Printf("连接redis失败: %v\n", err)
+		return err
 	}
-
-	log.Println("开始写入数据")
-	for i := 0; i <= 100000; i++ {
+	log.Printf("开始写入数据")
+	for i := 0; i <= num; i++ {
+		// 生成10个字节长度的key
 		key := fmt.Sprintf("%d", 1000000000+i)
-		value := RandStr(10)
+		value := createRandStr(valueSize)
 		if err := rdb.Set(key, value, 1*time.Hour).Err(); err != nil {
-			log.Printf("设置key失败: %s", err.Error())
+			log.Printf("写入key失败: %s", err.Error())
+			return err
 		}
 	}
-
 	log.Println("写入数据结束")
+	return nil
+}
+
+func main() {
+	keyCount := 100000
+	valueSize := 10
+
+	// 向redis写入指定数量，指定大小的随机生成的字符串
+	if err := writeData(keyCount, valueSize); err != nil {
+		log.Printf("写入数据失败：%s", err)
+	}
 
 }
