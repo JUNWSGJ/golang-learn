@@ -1,43 +1,90 @@
 package main
 
 import (
-	"fmt"
+	"bufio"
+	"golang-demo/socket_demo/proto"
 	"log"
 	"net"
 	"net/rpc"
-	"time"
 )
 
-func echo(conn *net.TCPConn) {
-	tick := time.Tick(5 * time.Second) // 五秒的心跳间隔
-	for now := range tick {
-		n, err := conn.Write([]byte(now.String()))
-		if err != nil {
-			log.Println(err)
-			conn.Close()
-			return
-		}
-		fmt.Printf("send %d bytes to %s\n", n, conn.RemoteAddr())
+type MessageHandler interface {
+	Handler(channel *Channel, message *proto.Message)
+}
+
+type Channel struct {
+	conn        net.Conn
+	rd          bufio.Reader
+	wr          bufio.Writer
+	messageChan chan proto.Message
+}
+
+func (c *Channel) SendMsg(msg string) {
+
+	if _, err := c.wr.WriteString(msg); err != nil {
+		log.Printf("write buf error:%v\n", err)
+	}
+	if err := c.wr.Flush(); err != nil {
+		log.Printf("flush write buf error:%v\n", err)
+	}
+}
+
+func (c *Channel) Close() {
+	if err := c.wr.Flush(); err != nil {
+		log.Printf("flush write buf error:%v\n", err)
+	}
+	c.conn.Close()
+}
+
+func handleRead(rd *bufio.Reader) {
+
+	//  获取消息包长度 ，4个字节，32位,
+	packageLenBytes := make([]byte, 4)
+	n, err := rd.Read(packageLenBytes)
+	if err != nil {
+		log.Panicf("read message error：%v\n", err)
+	}
+	if n < 4 {
+		log.Panicf("read package length fail, readed bytes size:%d, expect: 4\n")
+	}
+	packageLen := proto.BytesToUint32(packageLenBytes)
+	// 创建字节数组存储本条消息
+	messageBytes := make([]byte, packageLen-4)
+
+	n, err = rd.Read(messageBytes)
+	if err != nil {
+		log.Panicf("read message error：%v\n")
+	}
+	if n < int(packageLen)-4 {
+		log.Panicf("read message package fail, readed bytes size:%d, expect: %d\n", n, packageLen-4)
+	}
+
+	message := proto.Decode(&messageBytes, packageLen)
+	log.Printf("receive message: %s\n", message.String())
+	// 组装message
+}
+
+func handleConn(conn net.Conn) {
+	defer conn.Close()
+	rd := bufio.NewReader(conn)
+	for {
+		handleRead(rd)
 	}
 }
 
 func main() {
-	address := net.TCPAddr{
-		IP:   net.ParseIP("127.0.0.1"), // 把字符串IP地址转换为net.IP类型
-		Port: 8000,
-	}
-	listener, err := net.ListenTCP("tcp", &address)
+	listener, err := net.Listen("tcp", "127.0.0.1:10000")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("listen error: %v\n", err)
 	}
 
 	for {
-		conn, err := listener.AcceptTCP()
+		conn, err := listener.Accept()
 		if err != nil {
-			log.Fatal(err) // 错误直接退出
+			log.Printf("accept error:%v\n", err)
+			continue
 		}
-		fmt.Println("remote address:", conn.RemoteAddr())
-		go echo(conn)
+		go handleConn(conn)
 	}
 
 	rpc.NewServer()
